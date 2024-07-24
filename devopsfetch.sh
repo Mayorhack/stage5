@@ -42,7 +42,7 @@ function list_docker_images {
         if [ ${#image_name} -gt 20 ]; then
             image_name="${image_name:0:17}..."
         fi
-        echo "| $container_id | $image_name | $size | $created_date |"
+       printf "| %-20s | %-20s | %-16s | %-19s |\n" " $container_id"  $image_name"  "$size"  "$created_date "
     done <<< "$docker_info"
 
     echo "+----------------------+----------------------+---------+---------------------+"
@@ -65,7 +65,7 @@ function list_docker_containers {
         if [ ${#image} -gt 20 ]; then
             image="${image:0:17}..."
         fi
-        echo "| $container_id | $image | $status | $ports | $created_date |"
+        printf "| %-20s | %-20s | %-16s | %-20s | %-19s |\n" "$container_id" "$image" "$status" "$ports" "$created_date"
     done <<< "$docker_info"
 
     echo "+----------------------+------------------+--------------+----------------+------------------+"
