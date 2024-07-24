@@ -1,17 +1,14 @@
-# Use Ubuntu as the base image
-FROM ubuntu:20.04
+# Use an official Nginx image as a base
+FROM nginx:alpine
 
-# Avoid prompts from apt
-ENV DEBIAN_FRONTEND=noninteractive
+# Copy the frontend application files to the Nginx HTML directory
+COPY ./frontend /usr/share/nginx/html
 
-# Copy the devopsfetch script into the container
-COPY devopsfetch.sh /usr/local/bin/devopsfetch
+# Copy the custom Nginx configuration file
+COPY ./nginx.conf /etc/nginx/nginx.conf
 
-# Make the script executable
-RUN chmod +x /usr/local/bin/devopsfetch
-
-# Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/devopsfetch", "-c"]
-
-# Expose port 80 for potential future use (e.g., web interface)
+# Expose port 80
 EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
