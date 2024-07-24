@@ -52,7 +52,7 @@ function list_docker_images {
 function list_docker_containers {
     echo "Docker Containers:"
    # Fetching Docker containers with ID, Image, Status, Ports, and Created date
-    docker_info=$(sudo docker ps --format "{{.ID}}|{{.Image}}|{{.Status}}|{{.Ports}}|{{.CreatedAt}}")
+    docker_info=$(sudo docker ps -a --format "{{.ID}}|{{.Image}}|{{.Status}}|{{.Ports}}|{{.CreatedAt}}")
 
     # Displaying in a tabular format
     echo "+----------------------+------------------+--------------+----------------+------------------+"
