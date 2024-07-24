@@ -79,7 +79,9 @@ function list_docker_containers {
         if [ ${#image} -gt 20 ]; then
             image="${image:0:17}..."
         fi
-        printf "| %-16s | %-12s | %-7s | %-10s | %-20s |\n" "$container_id" "$image" "$status" "$ports" "$created_date"
+            # Extract only the port binding :::8000->80
+        specific_port=$(echo "$ports" | grep -oE ':::[0-9]+->80' | head -n 1)
+        printf "| %-16s | %-12s | %-7s | %-10s | %-20s |\n" "$container_id" "$image" "$status" "$specific_port" "$created_date"
     done <<< "$docker_info"
 
     echo "+----------------+------------+------------+-------------+---------------+"
