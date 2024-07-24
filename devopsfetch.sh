@@ -39,10 +39,11 @@ function list_docker_images {
     # Loop through each line of docker_info
     while IFS='|' read -r container_id image_name size created_date; do
         # Truncate image name if too long
+        formatted_date=$(date -d "$created_date" "+%Y-%m-%d %H:%M:%S")
         if [ ${#image_name} -gt 20 ]; then
             image_name="${image_name:0:17}..."
         fi
-       printf "| %-20s | %-20s | %-16s | %-19s |\n" " $container_id"  "$image_name"  "$size"  "$created_date"
+       printf "| %-20s | %-20s | %-10s | %-20s |\n" " $container_id"  "$image_name"  "$size"  "$formatted_date"
     done <<< "$docker_info"
 
     echo "+----------------------+----------------------+---------+---------------------+"
@@ -62,10 +63,16 @@ function list_docker_containers {
     # Loop through each line of docker_info
     while IFS='|' read -r container_id image status ports created_date; do
         # Truncate image name if too long
+        formatted_date=$(date -d "$created_date" "+%Y-%m-%d %H:%M:%S")
+        if [[ "$status" == *"Up"* ]]; then
+            status="Up"
+        else
+            status="Exited"
+        fi
         if [ ${#image} -gt 20 ]; then
             image="${image:0:17}..."
         fi
-        printf "| %-20s | %-20s | %-16s | %-20s | %-19s |\n" "$container_id" "$image" "$status" "$ports" "$created_date"
+        printf "| %-20s | %-20s | %-10s | %-10s | %-20s |\n" "$container_id" "$image" "$status" "$ports" "$formatted_date"
     done <<< "$docker_info"
 
     echo "+----------------------+------------------+--------------+----------------+------------------+"
