@@ -116,28 +116,36 @@ function display_container_details {
 
 # Function to display all Nginx domains and their ports
 function display_nginx_domains {
-      echo "Retrieving Nginx configurations..."
+     
+echo "Retrieving Nginx configurations..."
 
-    # Find all Nginx configuration files
-    config_files=$(find /etc/nginx -type f -name '*.conf')
+# Find all Nginx configuration files
+config_files=$(find /etc/nginx -type f -name '*.conf')
 
-    # Print table header
-    echo "+---------------------+------------------+------------------+" 
-    echo "| Config File Path    | Domain           | Ports            |"
-    echo "+---------------------+------------------+------------------+"
+# Print table header
+echo "+---------------------+------------------+------------------+"
+echo "| Config File Path    | Domain           | Ports            |"
+echo "+---------------------+------------------+------------------+"
 
-    # Loop through each configuration file
-    for conf_file in $config_files; do
-        # Extract domains and ports from each configuration file
-        grep -E 'server_name|listen' "$conf_file" | awk '
-        BEGIN {file=""; domain=""; port=""}
-        /server_name/ {domain=$2; file=FILENAME}
-        /listen/ {port=$2; if (domain != "") {printf "| %-24s | %-20s | %-12s |\n", file, domain, port; domain=""; port=""}}
-        ' OFS='\t'
-    done
+# Loop through each configuration file
+for conf_file in $config_files; do
+    # Extract domains and ports from each configuration file
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^\s*server_name ]]; then
+            domain=$(echo "$line" | awk '{print $2}')
+        elif [[ "$line" =~ ^\s*listen ]]; then
+            port=$(echo "$line" | awk '{print $2}')
+            # Print in tabular format if both domain and port are found
+            if [[ -n "$domain" && -n "$port" ]]; then
+                printf "| %-20s | %-14s | %-10s |\n" "$conf_file" "$domain" "$port"
+                domain=""  # Reset domain after printing
+            fi
+        fi
+    done < "$conf_file"
+done
 
-    # Print table footer
-    echo "+--------------------+------------------+-----------------+"
+# Print table footer
+echo "+---------------------+------------------+------------------+"
 }
 
 # Function to display detailed Nginx configuration for a specific domain
@@ -172,7 +180,7 @@ while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
         last_login_date=$(date -d "$last_login_info" "+%b %d %Y" 2>/dev/null)
         
         if [[ $? -ne 0 ]]; then
-            last_login_date="Last Time"
+            last_login_date=$last_login_info
         fi
     else
         last_login_date="Never logged in"
@@ -206,7 +214,7 @@ function display_time_range_activities {
         return 1
     fi
 
-    local log_file="/var/log/devopsfetch.log."
+    local log_file="/var/log/syslog"
 
     if [[ ! -f "$log_file" ]]; then
         echo "Error: Log file '$log_file' not found."
