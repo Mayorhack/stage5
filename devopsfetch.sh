@@ -170,17 +170,17 @@ users_info=$(sudo lastlog -u 0)
 # echo "+----------------------+----------------------+"
 
 # Loop through each line of users_info
-while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
+while IFS=' ' read -r username last_login1 last_login2 last_login3; do
     # Combine potential multi-word last_login fields
     last_login_info="${last_login1} ${last_login2} ${last_login3}"
-    echo $last_login_info
+   
     # Handle cases where last_login_info is not a valid date
     if [[ "$last_login_info" != "**Never logged in**" ]]; then
         # Attempt to convert last_login_info to a date format
         last_login_date=$(date -d "$last_login_info" "+%b %d %Y" 2>/dev/null)
         
         if [[ $? -ne 0 ]]; then
-            last_login_date=$last_login_info
+            last_login_date="Last Log"
         fi
     else
         last_login_date="Never logged in"
