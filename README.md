@@ -14,7 +14,8 @@ sudo bash install_devopsfetch.sh
 
 ## Usage
 
-Command-Line Flags
+## Command-Line Flags
+
 -p, --port [port_number]
 
 Description: Display all active ports and services or detailed information about a specific port.

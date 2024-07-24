@@ -2,20 +2,40 @@
 
 # Function to display all active ports and services
 function display_ports {
-    echo "Active Ports and Services:"
-     ports_info=$(sudo netstat -tuln | awk 'NR > 2 {print $4, $7}')
+    echo "Active Ports and Corresponding Services:"
 
-    # Displaying in a tabular format
-    echo "+--------------+--------------+"
-    echo "| Port Number  | Service Name |"
-    echo "+--------------+--------------+"
-    # Loop through each line of ports_info
-    while IFS= read -r line; do
-        port=$(echo "$line" | awk '{print $1}')
-        service=$(grep -w "$port" /etc/services | awk '{print $1}' | head -n 1)
-        echo "| $port | $service |"
-    done <<< "$ports_info"
-    echo "+--------------+--------------+"
+    # Fetch active ports and corresponding services using netstat
+    ports_info=$(sudo netstat -tuln)
+
+    # Display in a tabular format
+    echo "+-------------------+----------------------+"
+    echo "| Port              | Service              |"
+    echo "+-------------------+----------------------+"
+
+    # Parse ports_info and extract relevant information
+    echo "$ports_info" | awk '
+    BEGIN {
+        FS="[: ]+";
+    }
+    /tcp|udp/ {
+        if ($4 ~ /0.0.0.0/ || $4 ~ /::/) {
+            port = $5
+        } else {
+            port = $4
+        }
+        if (NR > 2) {
+            cmd = "getent services " port " | awk \047{print $1}\047"
+            cmd | getline service
+            close(cmd)
+            if (service == "") {
+                service = "Unknown"
+            }
+            printf "| %-17s | %-20s |\n", port, service
+        }
+    }
+    END {
+        print "+-------------------+----------------------+"
+    }'
 }
 
 # Function to display detailed information about a specific port
@@ -136,10 +156,10 @@ echo "Users and Last Login Times:"
 # Fetching users and their last login times
 users_info=$(sudo lastlog -u 0)
 
-# Displaying in a tabular format
-echo "+----------------------+----------------------+"
-echo "| Username             | Last Login Time      |"
-echo "+----------------------+----------------------+"
+# # Displaying in a tabular format
+# echo "+----------------------+----------------------+"
+# echo "| Username             | Last Login Time      |"
+# echo "+----------------------+----------------------+"
 
 # Loop through each line of users_info
 while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
@@ -152,7 +172,7 @@ while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
         last_login_date=$(date -d "$last_login_info" "+%b %d %Y" 2>/dev/null)
         
         if [[ $? -ne 0 ]]; then
-            last_login_date=$last_login1
+            last_login_date="Never Logged in"
         fi
     else
         last_login_date="Never logged in"
@@ -160,6 +180,7 @@ while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
 
     # Print in a tabular format
     printf "| %-20s | %-20s |\n" "$username" "$last_login_date"
+    echo "+----------------------+----------------------+"
 done <<< "$users_info"
 
 # Print table footer
