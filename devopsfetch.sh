@@ -1,188 +1,126 @@
 #!/bin/bash
 
-# devopsfetch.sh
+# Function to display all active ports and services
+function display_ports {
+    echo "Active Ports and Services:"
+    netstat -tuln | awk 'NR>2 {print $1, $4, $7}'
+}
+
+# Function to display detailed information about a specific port
+function display_port_details {
+    local port=$1
+    echo "Details for Port $port:"
+    netstat -tulnp | grep ":$port "
+}
+
+# Function to list all Docker images
+function list_docker_images {
+    echo "Docker Images:"
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}"
+}
+
+# Function to list all Docker containers
+function list_docker_containers {
+    echo "Docker Containers:"
+    docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+}
+
+# Function to display detailed information about a specific Docker container
+function display_container_details {
+    local container=$1
+    echo "Details for Docker Container $container:"
+    docker inspect $container
+}
+
+# Function to display all Nginx domains and their ports
+function display_nginx_domains {
+    echo "Nginx Domains and Ports:"
+    grep -r 'server_name' /etc/nginx/sites-available/* | awk '{print $3}' | sed 's/;//'
+    grep -r 'listen' /etc/nginx/sites-available/* | awk '{print $2}' | sed 's/;//'
+}
+
+# Function to display detailed Nginx configuration for a specific domain
+function display_nginx_domain_details {
+    local domain=$1
+    echo "Details for Nginx Domain $domain:"
+    grep -r "server_name $domain;" /etc/nginx/sites-available/*
+}
+
+# Function to list all users and their last login times
+function list_users {
+    echo "Users and Last Login Times:"
+    last -a | head -n -2
+}
+
+# Function to display detailed information about a specific user
+function display_user_details {
+    local username=$1
+    echo "Details for User $username:"
+    finger $username
+}
+
+# Function to display activities within a specified time range
+function display_time_range_activities {
+    local time_range=$1
+    echo "Activities within the time range $time_range:"
+    # Implement your logic here to filter activities by time range
+}
 
 # Function to display help
-display_help() {
-    echo "Usage: devopsfetch [OPTION]... [ARGUMENT]..."
-    echo "Collect and display system information for DevOps purposes."
-    echo
+function display_help {
+    echo "Usage: devopsfetch.sh [OPTION]"
     echo "Options:"
-    echo "  -p, --port [PORT]     Display active ports or info about a specific port"
-    echo "  -d, --docker [CONTAINER] List Docker images/containers or info about a specific container"
-    echo "  -n, --nginx [DOMAIN]  Display Nginx domains or info about a specific domain"
-    echo "  -u, --users [USERNAME] List users and last login times or info about a specific user"
-    echo "  -t, --time RANGE      Display activities within a specified time range"
-    echo "  -i, --install         Install devopsfetch and set up systemd service"
-    echo "  -c, --container-setup Set up the container environment"
-    echo "  -m, --monitor         Run in monitoring mode"
-    echo "  -s, --stop [CONTAINER] Stop Docker containers (all or specify container name/ID)"
-    echo "  -h, --help            Display this help message"
+    echo "  -p, --port [port_number]    Display all active ports and services or details of a specific port"
+    echo "  -d, --docker [container]    List all Docker images and containers or details of a specific container"
+    echo "  -n, --nginx [domain]        Display all Nginx domains and their ports or details of a specific domain"
+    echo "  -u, --users [username]      List all users and their last login times or details of a specific user"
+    echo "  -t, --time [time_range]     Display activities within a specified time range"
+    echo "  -h, --help                  Display this help message"
 }
 
-# Function to format output in table
-format_table() {
-    column -t -s $'\t'
-}
-
-# Function to get port information
-get_port_info() {
-    if [ -z "$1" ]; then
-        echo -e "Port\tPID\tProcess"
-        lsof -i -P -n | grep LISTEN | awk '{print $9"\t"$2"\t"$1}' | format_table
-    else
-        lsof -i -P -n | grep LISTEN | grep ":$1" | awk '{print $9"\t"$2"\t"$1}' | format_table
-    fi
-}
-
-# Function to get Docker information
-get_docker_info() {
-    if [ -z "$1" ]; then
-        docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
-    else
-        docker ps --filter "name=$1" --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
-    fi
-}
-
-# Function to get Nginx information
-get_nginx_info() {
-    if [ -z "$1" ]; then
-        nginx -T 2>/dev/null | grep -oP 'server_name\s+\K.*;' | tr -d ';'
-    else
-        nginx -T 2>/dev/null | grep -A 10 "server_name $1" | grep -oP 'server_name\s+\K.*;' | tr -d ';'
-    fi
-}
-
-# Function to get user information
-get_user_info() {
-    if [ -z "$1" ]; then
-        lastlog | awk '{print $1"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}'
-    else
-        lastlog | grep "^$1" | awk '{print $1"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}'
-    fi
-}
-
-# Function to install devopsfetch
-install_devopsfetch() {
-    if [ "$EUID" -ne 0 ]; then
-        echo "Please run the installation as root"
-        exit 1
-    fi
-
-    apt-get update
-    apt-get install -y lsof jq nginx docker.io
-
-    cp "$0" /usr/local/bin/devopsfetch
-    chmod +x /usr/local/bin/devopsfetch
-
-    cat > /etc/systemd/system/devopsfetch.service <<EOL
-[Unit]
-Description=DevOpsFetch Monitoring Service
-After=network.target
-
-[Service]
-ExecStart=/usr/local/bin/devopsfetch -m
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOL
-
-    systemctl daemon-reload
-    systemctl enable devopsfetch.service
-    systemctl start devopsfetch.service
-
-    echo "DevOpsFetch has been installed and the service has been started."
-}
-
-# Function for continuous monitoring
-monitor_system() {
-    log_dir="/var/log/devopsfetch"
-    
-    mkdir -p "$log_dir"
-    if [ ! -w "$log_dir" ]; then
-        echo "Log directory $log_dir is not writable. Please run as root or change the log directory permissions."
-        exit 1
-    fi
-
-    while true; do
-        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        echo "[$timestamp] System Information:" >> "$log_dir/devopsfetch.log"
-        get_port_info >> "$log_dir/devopsfetch.log"
-        get_docker_info >> "$log_dir/devopsfetch.log"
-        get_nginx_info >> "$log_dir/devopsfetch.log"
-        get_user_info >> "$log_dir/devopsfetch.log"
-        echo "" >> "$log_dir/devopsfetch.log"
-        sleep 300  # Wait for 5 minutes before the next check
-    done
-}
-
-# Function to set up container environment
-container_setup() {
-    if [ "$EUID" -ne 0 ]; then
-        echo "Please run the container setup as root"
-        exit 1
-    fi
-
-    apt-get update
-    apt-get install -y lsof jq nginx docker.io cron
-
-    mkdir -p /var/log/devopsfetch
-
-    echo "*/5 * * * * root /usr/local/bin/devopsfetch -m >> /var/log/devopsfetch/devopsfetch.log 2>&1" > /etc/cron.d/devopsfetch-cron
-    chmod 0644 /etc/cron.d/devopsfetch-cron
-
-    cron
-
-    monitor_system
-}
-
-# Function to stop Docker containers
-stop_docker_containers() {
-    if [ -z "$1" ]; then
-        echo "Stopping all running Docker containers..."
-        docker stop $(docker ps -q)
-    else
-        echo "Stopping Docker container: $1..."
-        docker stop "$1"
-    fi
-}
-
-# Main logic
+# Main logic to parse command-line arguments
 case "$1" in
     -p|--port)
-        get_port_info "$2"
+        if [[ -z "$2" ]]; then
+            display_ports
+        else
+            display_port_details "$2"
+        fi
         ;;
     -d|--docker)
-        get_docker_info "$2"
+        if [[ -z "$2" ]]; then
+            list_docker_images
+            list_docker_containers
+        else
+            display_container_details "$2"
+        fi
         ;;
     -n|--nginx)
-        get_nginx_info "$2"
+        if [[ -z "$2" ]]; then
+            display_nginx_domains
+        else
+            display_nginx_domain_details "$2"
+        fi
         ;;
     -u|--users)
-        get_user_info "$2"
+        if [[ -z "$2" ]]; then
+            list_users
+        else
+            display_user_details "$2"
+        fi
         ;;
     -t|--time)
-        echo "Time range feature not implemented yet"
-        ;;
-    -i|--install)
-        install_devopsfetch
-        ;;
-    -c|--container-setup)
-        container_setup
-        ;;
-    -m|--monitor)
-        monitor_system
-        ;;
-    -s|--stop)
-        stop_docker_containers "$2"
+        if [[ -z "$2" ]]; then
+            echo "Please provide a time range."
+        else
+            display_time_range_activities "$2"
+        fi
         ;;
     -h|--help)
         display_help
         ;;
     *)
-        echo "Invalid option. Use -h or --help for usage information."
-        exit 1
+        echo "Invalid option: $1"
+        display_help
         ;;
 esac
