@@ -32,9 +32,9 @@ function list_docker_images {
     docker_info=$(sudo docker images --format "{{.ID}}|{{.Repository}}:{{.Tag}}|{{.Size}}|{{.CreatedAt}}")
 
     # Displaying in a tabular format
-    echo "+----------------------+----------------------+----------------------+---------------------+"
-    echo "| Container ID         | Image Name           | Size                 | Created Date        |"
-    echo "+----------------------+----------------------+----------------------+---------------------+"
+    echo "+----------------------+----------------------+---------+---------------------+"
+    echo "| Container ID         | Image Name           | Size    | Created Date        |"
+    echo "+----------------------+----------------------+---------+---------------------+"
 
     # Loop through each line of docker_info
     while IFS='|' read -r container_id image_name size created_date; do
@@ -45,7 +45,7 @@ function list_docker_images {
         echo "| $container_id | $image_name | $size | $created_date |"
     done <<< "$docker_info"
 
-    echo "+----------------------+----------------------+----------------------+---------------------+"
+    echo "+----------------------+----------------------+---------+---------------------+"
 }
 
 # Function to list all Docker containers
@@ -55,9 +55,9 @@ function list_docker_containers {
     docker_info=$(sudo docker ps --format "{{.ID}}|{{.Image}}|{{.Status}}|{{.Ports}}|{{.CreatedAt}}")
 
     # Displaying in a tabular format
-    echo "+----------------------+----------------------+----------------------+----------------------+---------------------+"
-    echo "| Container ID         | Image                | Status               | Ports                | Created Date        |"
-    echo "+----------------------+----------------------+----------------------+----------------------+---------------------+"
+    echo "+----------------------+------------------+--------------+----------------+------------------+"
+    echo "| Container ID         | Image            | Status       | Ports          | Created Date     |"
+    echo "+----------------------+------------------+--------------+----------------+------------------+"
 
     # Loop through each line of docker_info
     while IFS='|' read -r container_id image status ports created_date; do
@@ -68,7 +68,7 @@ function list_docker_containers {
         echo "| $container_id | $image | $status | $ports | $created_date |"
     done <<< "$docker_info"
 
-    echo "+----------------------+----------------------+----------------------+----------------------+---------------------+"
+    echo "+----------------------+------------------+--------------+----------------+------------------+"
 }
 
 # Function to display detailed information about a specific Docker container
