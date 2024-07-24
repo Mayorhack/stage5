@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend_app
     ports:
-      - "80:80" # Maps port 80 on the host to port 80 on the container
+      - "8000:80" # Maps port 80 on the host to port 80 on the container
     networks:
       - web_network
 
