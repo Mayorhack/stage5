@@ -122,9 +122,9 @@ function display_nginx_domains {
     config_files=$(find /etc/nginx -type f -name '*.conf')
 
     # Print table header
-    echo "+------------------------------------+----------------------+----------------------+" 
-    echo "| Config File Path                   | Domain               | Ports                |"
-    echo "+------------------------------------+----------------------+----------------------+"
+    echo "+---------------------+------------------+------------------+" 
+    echo "| Config File Path    | Domain           | Ports            |"
+    echo "+---------------------+------------------+------------------+"
 
     # Loop through each configuration file
     for conf_file in $config_files; do
@@ -132,12 +132,12 @@ function display_nginx_domains {
         grep -E 'server_name|listen' "$conf_file" | awk '
         BEGIN {file=""; domain=""; port=""}
         /server_name/ {domain=$2; file=FILENAME}
-        /listen/ {port=$2; if (domain != "") {printf "| %-48s | %-28s | %-18s |\n", file, domain, port; domain=""; port=""}}
+        /listen/ {port=$2; if (domain != "") {printf "| %-24s | %-20s | %-12s |\n", file, domain, port; domain=""; port=""}}
         ' OFS='\t'
     done
 
     # Print table footer
-    echo "+-------------------------------------+---------------------+----------------------+"
+    echo "+--------------------+------------------+-----------------+"
 }
 
 # Function to display detailed Nginx configuration for a specific domain
@@ -165,14 +165,14 @@ users_info=$(sudo lastlog -u 0)
 while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
     # Combine potential multi-word last_login fields
     last_login_info="${last_login1} ${last_login2} ${last_login3}"
-    
+    echo $last_login_info
     # Handle cases where last_login_info is not a valid date
     if [[ "$last_login_info" != "**Never logged in**" ]]; then
         # Attempt to convert last_login_info to a date format
         last_login_date=$(date -d "$last_login_info" "+%b %d %Y" 2>/dev/null)
         
         if [[ $? -ne 0 ]]; then
-            last_login_date="Never Logged in"
+            last_login_date="Last Time"
         fi
     else
         last_login_date="Never logged in"
@@ -183,8 +183,7 @@ while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
     echo "+----------------------+----------------------+"
 done <<< "$users_info"
 
-# Print table footer
-echo "+----------------------+----------------------+"
+
 
 
 }
@@ -287,13 +286,20 @@ case "$1" in
             display_user_details "$2"
         fi
         ;;
-    -t|--time)
-        if [[ -z "$2" || -z "$3" ]]; then
-            echo "Please provide a time range."
-        else
-            display_time_range_activities "$2" "$3"
-        fi
-        ;;
+    -t | --time)
+            if [[ -z "$2" || -z "$3" ]]; then
+                echo "Please provide a start and end time."
+                echo "Usage: $0 -t 'start_time' 'end_time'"
+                exit 1
+            else
+                display_time_range_activities "$2" "$3"
+                shift 3
+            fi
+            ;;
+        *)
+            echo "Usage: $0 [-t start_time end_time]"
+            exit 1
+            ;;
     -h|--help)
         display_help
         ;;

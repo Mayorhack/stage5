@@ -2,7 +2,7 @@
 
 # Install necessary dependencies
 sudo apt update
-sudo apt install -y net-tools docker.io nginx logrotate
+sudo apt install -y net-tools docker.io nginx logrotate finger
 
 # Copy devopsfetch.sh to /usr/local/bin
 sudo cp devopsfetch.sh /usr/local/bin/devopsfetch
