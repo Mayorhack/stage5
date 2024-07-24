@@ -3,7 +3,19 @@
 # Function to display all active ports and services
 function display_ports {
     echo "Active Ports and Services:"
-    netstat -tuln | awk 'NR>2 {print $1, $4, $7}'
+     ports_info=$(netstat -tuln | awk 'NR > 2 {print $4, $7}')
+
+    # Displaying in a tabular format
+    echo "+--------------+--------------+"
+    echo "| Port Number  | Service Name |"
+    echo "+--------------+--------------+"
+    # Loop through each line of ports_info
+    while IFS= read -r line; do
+        port=$(echo "$line" | awk '{print $1}')
+        service=$(echo "$line" | awk '{print $2}')
+        echo "| $port | $service |"
+    done <<< "$ports_info"
+    echo "+--------------+--------------+"
 }
 
 # Function to display detailed information about a specific port
@@ -16,7 +28,24 @@ function display_port_details {
 # Function to list all Docker images
 function list_docker_images {
     echo "Docker Images:"
-    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}"
+# Fetching Docker images with ID, Repository, Tag, Size, and Created date
+    docker_info=$(sudo docker images --format "{{.ID}}|{{.Repository}}:{{.Tag}}|{{.Size}}|{{.CreatedAt}}")
+
+    # Displaying in a tabular format
+    echo "+----------------------+----------------------+----------------------+---------------------+"
+    echo "| Container ID         | Image Name           | Size                 | Created Date        |"
+    echo "+----------------------+----------------------+----------------------+---------------------+"
+
+    # Loop through each line of docker_info
+    while IFS='|' read -r container_id image_name size created_date; do
+        # Truncate image name if too long
+        if [ ${#image_name} -gt 20 ]; then
+            image_name="${image_name:0:17}..."
+        fi
+        echo "| $container_id | $image_name | $size | $created_date |"
+    done <<< "$docker_info"
+
+    echo "+----------------------+----------------------+----------------------+---------------------+"
 }
 
 # Function to list all Docker containers
