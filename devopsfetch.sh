@@ -12,7 +12,7 @@ function display_ports {
     # Loop through each line of ports_info
     while IFS= read -r line; do
         port=$(echo "$line" | awk '{print $1}')
-        service=$(echo "$line" | awk '{print $2}')
+        service=$(grep -w "$port" /etc/services | awk '{print $1}' | head -n 1)
         echo "| $port | $service |"
     done <<< "$ports_info"
     echo "+--------------+--------------+"
@@ -96,35 +96,28 @@ function display_container_details {
 
 # Function to display all Nginx domains and their ports
 function display_nginx_domains {
-     # Fetching Nginx domains, ports, and configuration file paths
-    nginx_info=$(sudo nginx -T | grep -E 'server_name|listen' | awk '{print $1, $2, $3}')
+      echo "Retrieving Nginx configurations..."
 
-    # Displaying in a tabular format
-    echo "+-------------------+------------+----------------------+"
-    echo "| Domain            | Port       | Configuration File   |"
-    echo "+-------------------+------------+----------------------+"
+    # Find all Nginx configuration files
+    config_files=$(find /etc/nginx -type f -name '*.conf')
 
-    # Variables to store current domain, port, and configuration file path
-    current_domain=""
-    current_port=""
-    config_file=""
+    # Print table header
+    echo "+------------------------------------+----------------------+----------------------+" 
+    echo "| Config File Path                   | Domain               | Ports                |"
+    echo "+------------------------------------+----------------------+----------------------+"
 
-    # Loop through each line of nginx_info
-    while IFS=' ' read -r directive value path; do
-        if [[ $directive == "server_name" ]]; then
-            # Extract domain name
-            current_domain="$value"
-        elif [[ $directive == "listen" ]]; then
-            # Extract port number
-            current_port="$value"
-            # Print domain, port, and configuration file path in tabular format
-            echo "| $current_domain | $current_port | $path |"
-            current_domain=""
-            current_port=""
-        fi
-    done <<< "$nginx_info"
+    # Loop through each configuration file
+    for conf_file in $config_files; do
+        # Extract domains and ports from each configuration file
+        grep -E 'server_name|listen' "$conf_file" | awk '
+        BEGIN {file=""; domain=""; port=""}
+        /server_name/ {domain=$2; file=FILENAME}
+        /listen/ {port=$2; if (domain != "") {printf "| %-48s | %-28s | %-18s |\n", file, domain, port; domain=""; port=""}}
+        ' OFS='\t'
+    done
 
-    echo "+-------------------+------------+----------------------+"
+    # Print table footer
+    echo "+-------------------------------------+---------------------+----------------------+"
 }
 
 # Function to display detailed Nginx configuration for a specific domain
@@ -136,28 +129,35 @@ function display_nginx_domain_details {
 
 # Function to list all users and their last login times
 function list_users {
-   echo "Users and Last Login Times:"
-    
-    # Fetching users and their last login times
-    users_info=$(sudo lastlog -u 0)
+echo "Users and Last Login Times:"
 
-    # Displaying in a tabular format
-    echo "+----------------------+----------------------+"
-    echo "| Username             | Last Login Time      |"
-    echo "+----------------------+----------------------+"
+# Fetching users and their last login times
+users_info=$(sudo lastlog -u 0)
 
-    # Loop through each line of users_info
-    while IFS=: read -r username _ _ last_login; do
-        if [[ "$last_login" != "**Never logged in**" ]]; then
-            # Convert last login time from epoch to human-readable format
-            last_login_date=$(date -d "$(echo $last_login | awk '{print $1}')")
-        else
-            last_login_date="Never logged in"
-        fi
-        echo "| $username | $last_login_date |"
-    done <<< "$users_info"
+# Displaying in a tabular format
+echo "+----------------------+----------------------+" 
+echo "| Username             | Last Login Time      |"
+echo "+----------------------+----------------------+" 
 
-    echo "+----------------------+----------------------+"
+# Loop through each line of users_info
+while IFS=' ' read -r username _ _ last_login; do
+    # Handle the case where last_login contains multiple words
+    last_login_info="${last_login}"
+
+    # Convert last login time to human-readable format
+    if [[ "$last_login_info" != "**Never logged in**" ]]; then
+        # Extract date and convert to short format
+        last_login_date=$(date -d "$(echo "$last_login_info" | awk '{print $1}')" "+%b %d %Y")
+    else
+        last_login_date="Never logged in"
+    fi
+
+    # Print in a tabular format
+    printf "| %-20s | %-20s |\n" "$username" "$last_login_date"
+done <<< "$users_info"
+
+# Print table footer
+echo "+----------------------+----------------------+"
 
 }
 
@@ -170,11 +170,12 @@ function display_user_details {
 
 # Function to display activities within a specified time range
 function display_time_range_activities {
-    local exact_time="$1"
+      local start_time="$1"
+    local end_time="$2"
 
-    if [[ -z "$exact_time" ]]; then
-        echo "Usage: get_syslog_by_exact_timestamp <exact_time>"
-        echo "Example: get_syslog_by_exact_timestamp '2024-07-24 00:00:00'"
+    if [[ -z "$start_time" || -z "$end_time" ]]; then
+        echo "Usage: display_time_range_activities <start_time> <end_time>"
+        echo "Example: display_time_range_activities '2024-07-24 00:00:00' '2024-07-24 23:59:59'"
         return 1
     fi
 
@@ -185,26 +186,34 @@ function display_time_range_activities {
         return 1
     fi
 
-    # Convert exact timestamp to epoch for comparison
-    exact_epoch=$(date -d "$exact_time" +%s)
+    # Convert start and end timestamps to epoch for comparison
+    local start_epoch=$(date -d "$start_time" +%s)
+    local end_epoch=$(date -d "$end_time" +%s)
 
-    echo "Fetching syslog entries for '$exact_time'..."
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Invalid date format. Use 'YYYY-MM-DD HH:MM:SS'."
+        return 1
+    fi
 
-    awk -v exact_epoch="$exact_epoch" '
+    echo "Fetching syslog entries from '$start_time' to '$end_time'..."
+
+    awk -v start_epoch="$start_epoch" -v end_epoch="$end_epoch" '
     {
-        # Extract timestamp from log line, assuming format: "MMM DD HH:MM:SS" (e.g., "Jul 24 00:00:00")
+        # Extract date and time from log line
         log_date = $1 " " $2 " " $3
         log_time = substr($0, index($0, $4))
         log_datetime = log_date " " log_time
+        
+        # Convert log datetime to epoch
         cmd = "date -d \"" log_datetime "\" +%s"
         cmd | getline log_epoch
         close(cmd)
 
-        if (log_epoch == exact_epoch) {
+        # Check if the log entry is within the specified time range
+        if (log_epoch >= start_epoch && log_epoch <= end_epoch) {
             print $0
         }
     }' "$log_file"
-    # Implement your logic here to filter activities by time range
 }
 
 # Function to display help
