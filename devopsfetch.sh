@@ -3,7 +3,7 @@
 # Function to display all active ports and services
 function display_ports {
     echo "Active Ports and Services:"
-     ports_info=$(netstat -tuln | awk 'NR > 2 {print $4, $7}')
+     ports_info=$(sudo netstat -tuln | awk 'NR > 2 {print $4, $7}')
 
     # Displaying in a tabular format
     echo "+--------------+--------------+"
@@ -22,7 +22,7 @@ function display_ports {
 function display_port_details {
     local port=$1
     echo "Details for Port $port:"
-    netstat -tulnp | grep ":$port "
+    sudo netstat -tulnp | grep ":$port "
 }
 
 # Function to list all Docker images
@@ -75,7 +75,7 @@ function list_docker_containers {
 function display_container_details {
     local container=$1
     echo "Details for Docker Container $container:"
-    docker inspect $container
+    sudo docker inspect $container
 }
 
 # Function to display all Nginx domains and their ports
