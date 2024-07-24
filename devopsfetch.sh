@@ -42,12 +42,11 @@ function list_docker_images {
         # Strip off the timezone information (+0000 UTC) from created_date
         created_date=$(echo "$created_date" | awk '{print $1, $2, $3, $4}')
         
-        # Convert the stripped date to a human-readable format (e.g., YYYY-MM-DD HH:MM:SS)
-        formatted_date=$(date -d "$created_date" "+%Y-%m-%d %H:%M:%S")
+      
         if [ ${#image_name} -gt 20 ]; then
             image_name="${image_name:0:17}..."
         fi
-       printf "| %-20s | %-20s | %-10s | %-20s |\n" " $container_id"  "$image_name"  "$size"  "$formatted_date"
+       printf "| %-20s | %-20s | %-10s | %-20s |\n" " $container_id"  "$image_name"  "$size"  "$created_date"
     done <<< "$docker_info"
 
     echo "+----------------------+----------------------+---------+---------------------+"
@@ -71,7 +70,7 @@ function list_docker_containers {
         created_date=$(echo "$created_date" | awk '{print $1, $2, $3, $4}')
         
         # Convert the stripped date to a human-readable format (e.g., YYYY-MM-DD HH:MM:SS)
-        formatted_date=$(date -d "$created_date" "+%Y-%m-%d %H:%M:%S")
+       
         if [[ "$status" == *"Up"* ]]; then
             status="Up"
         else
@@ -80,7 +79,7 @@ function list_docker_containers {
         if [ ${#image} -gt 20 ]; then
             image="${image:0:17}..."
         fi
-        printf "| %-20s | %-20s | %-10s | %-10s | %-20s |\n" "$container_id" "$image" "$status" "$ports" "$formatted_date"
+        printf "| %-20s | %-20s | %-10s | %-10s | %-20s |\n" "$container_id" "$image" "$status" "$ports" "$created_date"
     done <<< "$docker_info"
 
     echo "+----------------------+------------------+--------------+----------------+------------------+"
