@@ -16,28 +16,65 @@ display_help() {
     echo "  -i, --install         Install devopsfetch and set up systemd service"
     echo "  -c, --container-setup Set up the container environment"
     echo "  -m, --monitor         Run in monitoring mode"
+    echo "  -s, --stop [CONTAINER] Stop Docker containers (all or specify container name/ID)"
     echo "  -h, --help            Display this help message"
 }
 
-# ... [Keep all the existing functions: format_table, get_port_info, get_docker_info, get_nginx_info, get_user_info] ...
+# Function to format output in table
+format_table() {
+    column -t -s $'\t'
+}
+
+# Function to get port information
+get_port_info() {
+    if [ -z "$1" ]; then
+        echo -e "Port\tPID\tProcess"
+        lsof -i -P -n | grep LISTEN | awk '{print $9"\t"$2"\t"$1}' | format_table
+    else
+        lsof -i -P -n | grep LISTEN | grep ":$1" | awk '{print $9"\t"$2"\t"$1}' | format_table
+    fi
+}
+
+# Function to get Docker information
+get_docker_info() {
+    if [ -z "$1" ]; then
+        docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
+    else
+        docker ps --filter "name=$1" --format "table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
+    fi
+}
+
+# Function to get Nginx information
+get_nginx_info() {
+    if [ -z "$1" ]; then
+        nginx -T 2>/dev/null | grep -oP 'server_name\s+\K.*;' | tr -d ';'
+    else
+        nginx -T 2>/dev/null | grep -A 10 "server_name $1" | grep -oP 'server_name\s+\K.*;' | tr -d ';'
+    fi
+}
+
+# Function to get user information
+get_user_info() {
+    if [ -z "$1" ]; then
+        lastlog | awk '{print $1"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}'
+    else
+        lastlog | grep "^$1" | awk '{print $1"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7}'
+    fi
+}
 
 # Function to install devopsfetch
 install_devopsfetch() {
-    # Check if script is run as root
     if [ "$EUID" -ne 0 ]; then
         echo "Please run the installation as root"
         exit 1
     fi
 
-    # Install dependencies
     apt-get update
     apt-get install -y lsof jq nginx docker.io
 
-    # Copy this script to /usr/local/bin
-    # cp "$0" /usr/local/bin/devopsfetch
-    # chmod +x /usr/local/bin/devopsfetch
+    cp "$0" /usr/local/bin/devopsfetch
+    chmod +x /usr/local/bin/devopsfetch
 
-    # Create systemd service file
     cat > /etc/systemd/system/devopsfetch.service <<EOL
 [Unit]
 Description=DevOpsFetch Monitoring Service
@@ -52,7 +89,6 @@ User=root
 WantedBy=multi-user.target
 EOL
 
-    # Reload systemd, enable and start the service
     systemctl daemon-reload
     systemctl enable devopsfetch.service
     systemctl start devopsfetch.service
@@ -62,36 +98,55 @@ EOL
 
 # Function for continuous monitoring
 monitor_system() {
+    log_dir="/var/log/devopsfetch"
+    
+    mkdir -p "$log_dir"
+    if [ ! -w "$log_dir" ]; then
+        echo "Log directory $log_dir is not writable. Please run as root or change the log directory permissions."
+        exit 1
+    fi
+
     while true; do
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        echo "[$timestamp] System Information:" >> /var/log/devopsfetch.log
-        get_port_info >> /var/log/devopsfetch.log
-        get_docker_info >> /var/log/devopsfetch.log
-        get_nginx_info >> /var/log/devopsfetch.log
-        get_user_info >> /var/log/devopsfetch.log
-        echo "" >> /var/log/devopsfetch.log
+        echo "[$timestamp] System Information:" >> "$log_dir/devopsfetch.log"
+        get_port_info >> "$log_dir/devopsfetch.log"
+        get_docker_info >> "$log_dir/devopsfetch.log"
+        get_nginx_info >> "$log_dir/devopsfetch.log"
+        get_user_info >> "$log_dir/devopsfetch.log"
+        echo "" >> "$log_dir/devopsfetch.log"
         sleep 300  # Wait for 5 minutes before the next check
     done
 }
 
 # Function to set up container environment
 container_setup() {
-    # Install necessary packages
+    if [ "$EUID" -ne 0 ]; then
+        echo "Please run the container setup as root"
+        exit 1
+    fi
+
     apt-get update
     apt-get install -y lsof jq nginx docker.io cron
 
-    # Create log directory
     mkdir -p /var/log/devopsfetch
 
-    # Set up cron job
     echo "*/5 * * * * root /usr/local/bin/devopsfetch -m >> /var/log/devopsfetch/devopsfetch.log 2>&1" > /etc/cron.d/devopsfetch-cron
     chmod 0644 /etc/cron.d/devopsfetch-cron
 
-    # Start cron
     cron
 
-    # Start monitoring
     monitor_system
+}
+
+# Function to stop Docker containers
+stop_docker_containers() {
+    if [ -z "$1" ]; then
+        echo "Stopping all running Docker containers..."
+        docker stop $(docker ps -q)
+    else
+        echo "Stopping Docker container: $1..."
+        docker stop "$1"
+    fi
 }
 
 # Main logic
@@ -119,6 +174,9 @@ case "$1" in
         ;;
     -m|--monitor)
         monitor_system
+        ;;
+    -s|--stop)
+        stop_docker_containers "$2"
         ;;
     -h|--help)
         display_help
