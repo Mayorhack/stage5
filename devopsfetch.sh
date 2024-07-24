@@ -129,25 +129,31 @@ function display_nginx_domain_details {
 
 # Function to list all users and their last login times
 function list_users {
+#!/bin/bash
+
 echo "Users and Last Login Times:"
 
 # Fetching users and their last login times
 users_info=$(sudo lastlog -u 0)
 
 # Displaying in a tabular format
-echo "+----------------------+----------------------+" 
+echo "+----------------------+----------------------+"
 echo "| Username             | Last Login Time      |"
-echo "+----------------------+----------------------+" 
+echo "+----------------------+----------------------+"
 
 # Loop through each line of users_info
-while IFS=' ' read -r username _ _ last_login; do
-    # Handle the case where last_login contains multiple words
-    last_login_info="${last_login}"
-
-    # Convert last login time to human-readable format
+while IFS=' ' read -r username _ _ last_login1 last_login2 last_login3; do
+    # Combine potential multi-word last_login fields
+    last_login_info="${last_login1} ${last_login2} ${last_login3}"
+    
+    # Handle cases where last_login_info is not a valid date
     if [[ "$last_login_info" != "**Never logged in**" ]]; then
-        # Extract date and convert to short format
-        last_login_date=$(date -d "$(echo "$last_login_info" | awk '{print $1}')" "+%b %d %Y")
+        # Attempt to convert last_login_info to a date format
+        last_login_date=$(date -d "$last_login_info" "+%b %d %Y" 2>/dev/null)
+        
+        if [[ $? -ne 0 ]]; then
+            last_login_date=$last_login1
+        fi
     else
         last_login_date="Never logged in"
     fi
@@ -158,6 +164,7 @@ done <<< "$users_info"
 
 # Print table footer
 echo "+----------------------+----------------------+"
+
 
 }
 
@@ -170,7 +177,7 @@ function display_user_details {
 
 # Function to display activities within a specified time range
 function display_time_range_activities {
-      local start_time="$1"
+    local start_time="$1"
     local end_time="$2"
 
     if [[ -z "$start_time" || -z "$end_time" ]]; then
@@ -260,10 +267,10 @@ case "$1" in
         fi
         ;;
     -t|--time)
-        if [[ -z "$2" ]]; then
+        if [[ -z "$2" || -z "$3" ]]; then
             echo "Please provide a time range."
         else
-            display_time_range_activities "$2"
+            display_time_range_activities "$2" "$3"
         fi
         ;;
     -h|--help)
