@@ -51,7 +51,24 @@ function list_docker_images {
 # Function to list all Docker containers
 function list_docker_containers {
     echo "Docker Containers:"
-    docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+   # Fetching Docker containers with ID, Image, Status, Ports, and Created date
+    docker_info=$(sudo docker ps --format "{{.ID}}|{{.Image}}|{{.Status}}|{{.Ports}}|{{.CreatedAt}}")
+
+    # Displaying in a tabular format
+    echo "+----------------------+----------------------+----------------------+----------------------+---------------------+"
+    echo "| Container ID         | Image                | Status               | Ports                | Created Date        |"
+    echo "+----------------------+----------------------+----------------------+----------------------+---------------------+"
+
+    # Loop through each line of docker_info
+    while IFS='|' read -r container_id image status ports created_date; do
+        # Truncate image name if too long
+        if [ ${#image} -gt 20 ]; then
+            image="${image:0:17}..."
+        fi
+        echo "| $container_id | $image | $status | $ports | $created_date |"
+    done <<< "$docker_info"
+
+    echo "+----------------------+----------------------+----------------------+----------------------+---------------------+"
 }
 
 # Function to display detailed information about a specific Docker container
@@ -64,8 +81,36 @@ function display_container_details {
 # Function to display all Nginx domains and their ports
 function display_nginx_domains {
     echo "Nginx Domains and Ports:"
-    grep -r 'server_name' /etc/nginx/sites-available/* | awk '{print $3}' | sed 's/;//'
-    grep -r 'listen' /etc/nginx/sites-available/* | awk '{print $2}' | sed 's/;//'
+    # grep -r 'server_name' /etc/nginx/sites-available/* | awk '{print $3}' | sed 's/;//'
+    # grep -r 'listen' /etc/nginx/sites-available/* | awk '{print $2}' | sed 's/;//'
+     # Fetching Nginx domains and ports
+    nginx_info=$(sudo nginx -T | grep 'server_name\|listen')
+
+    # Displaying in a tabular format
+    echo "+----------------------+----------------------+----------------------+"
+    echo "| Domain               | Port                 | Configuration        |"
+    echo "+----------------------+----------------------+----------------------+"
+
+    # Variables to store current domain and port
+    current_domain=""
+    current_port=""
+
+    # Loop through each line of nginx_info
+    while IFS=' ' read -r line; do
+        if [[ $line == *"server_name"* ]]; then
+            # Extract domain name
+            current_domain=$(echo "$line" | awk '{print $2}')
+        elif [[ $line == *"listen"* ]]; then
+            # Extract port number
+            current_port=$(echo "$line" | awk '{print $2}')
+            # Print domain, port, and configuration in tabular format
+            echo "| $current_domain | $current_port |"
+            current_domain=""
+            current_port=""
+        fi
+    done <<< "$nginx_info"
+
+    echo "+----------------------+----------------------+----------------------+"
 }
 
 # Function to display detailed Nginx configuration for a specific domain
@@ -78,7 +123,27 @@ function display_nginx_domain_details {
 # Function to list all users and their last login times
 function list_users {
     echo "Users and Last Login Times:"
-    last -a | head -n -2
+  # Fetching users and their last login times
+    users_info=$(sudo lastlog -u 0)
+
+    # Displaying in a tabular format
+    echo "+----------------------+----------------------+"
+    echo "| Username             | Last Login Time      |"
+    echo "+----------------------+----------------------+"
+
+    # Loop through each line of users_info
+    while IFS=: read -r username _ _ last_login; do
+        if [[ "$last_login" != "**Never logged in**" ]]; then
+            # Convert last login time from epoch to human-readable format
+            last_login_date=$(date -d "@$last_login" "+%Y-%m-%d %H:%M")
+        else
+            last_login_date="Never logged in"
+        fi
+        echo "| $username | $last_login_date |"
+    done <<< "$users_info"
+
+    echo "+----------------------+----------------------+"
+
 }
 
 # Function to display detailed information about a specific user
