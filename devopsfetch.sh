@@ -186,7 +186,7 @@ function display_time_range_activities {
         return 1
     fi
 
-    local log_file="/var/log/syslog"
+    local log_file="/var/log/devopsfetch.log."
 
     if [[ ! -f "$log_file" ]]; then
         echo "Error: Log file '$log_file' not found."
