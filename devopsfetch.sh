@@ -39,6 +39,10 @@ function list_docker_images {
     # Loop through each line of docker_info
     while IFS='|' read -r container_id image_name size created_date; do
         # Truncate image name if too long
+        # Strip off the timezone information (+0000 UTC) from created_date
+        created_date=$(echo "$created_date" | awk '{print $1, $2, $3, $4}')
+        
+        # Convert the stripped date to a human-readable format (e.g., YYYY-MM-DD HH:MM:SS)
         formatted_date=$(date -d "$created_date" "+%Y-%m-%d %H:%M:%S")
         if [ ${#image_name} -gt 20 ]; then
             image_name="${image_name:0:17}..."
@@ -63,6 +67,10 @@ function list_docker_containers {
     # Loop through each line of docker_info
     while IFS='|' read -r container_id image status ports created_date; do
         # Truncate image name if too long
+       # Strip off the timezone information (+0000 UTC) from created_date
+        created_date=$(echo "$created_date" | awk '{print $1, $2, $3, $4}')
+        
+        # Convert the stripped date to a human-readable format (e.g., YYYY-MM-DD HH:MM:SS)
         formatted_date=$(date -d "$created_date" "+%Y-%m-%d %H:%M:%S")
         if [[ "$status" == *"Up"* ]]; then
             status="Up"
