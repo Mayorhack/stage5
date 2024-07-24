@@ -20,28 +20,48 @@ sudo bash install_devopsfetch.sh
 
 Description: Display all active ports and services or detailed information about a specific port.
 Usage:
-Display all ports: devopsfetch -p
+Display all ports:
+
+```sh
+devopsfetch -p
+```
+
 Display details for a specific port: devopsfetch -p [port_number]
 
 -d, --docker [container_name]
 
 Description: List all Docker images and containers or detailed information about a specific container.
 Usage:
-List all Docker images and containers: devopsfetch -d
+List all Docker images and containers:
+
+```sh
+ devopsfetch -d
+```
+
 Display details for a specific container: devopsfetch -d [container_name]
 
 -n, --nginx [domain]
 
 Description: Display all Nginx domains and their ports or detailed configuration for a specific domain.
 Usage:
-Display all domains and ports: devopsfetch -n
+Display all domains and ports:
+
+```sh
+ devopsfetch -n
+```
+
 Display details for a specific domain: devopsfetch -n [domain]
 
 -u, --users [username]
 
 Description: List all users and their last login times or detailed information about a specific user.
 Usage:
-List all users: devopsfetch -u
+List all users:
+
+```sh
+ devopsfetch -u
+```
+
 Display details for a specific user: devopsfetch -u [username]
 
 -t, --time [time_range]
@@ -53,7 +73,12 @@ Display activities: devopsfetch -t [time_range]
 -h, --help
 
 Description: Display help information about the script and its usage.
-Usage: devopsfetch -h
+Usage:
+
+```sh
+ devopsfetch -h
+```
+
 Output Formatting
 devopsfetch formats all outputs in well-organized tables with descriptive column names for readability.
 
